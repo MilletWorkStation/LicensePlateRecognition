@@ -31,9 +31,10 @@ private:
     cv::Mat Sobel(cv::Mat& src);
     cv::Mat TwoValued(cv::Mat& src);
     cv::Mat Close(cv::Mat& src);
-    cv::Mat Contour(cv::Mat& src);
+    cv::RotatedRect Contour(cv::Mat& src);
+    cv::RotatedRect Rotate(cv::Mat& src);
 
-    // 判定面积是否在规定范围以内
+    // 判定宽高比在 3：1 左右
     bool VerifySizes(cv::RotatedRect minArea);
 
 
