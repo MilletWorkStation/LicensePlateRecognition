@@ -5,6 +5,14 @@
 #include <QFileDialog>
 
 
+#include <opencv2/core/bufferpool.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/objdetect/objdetect.hpp>
+#include <opencv2/ml/ml.hpp>
+
+
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -23,7 +31,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::OpenFile()
 {
-    QString strFile = QFileDialog::getOpenFileName(this, "打开文件");
+    QString strFile = QFileDialog::getOpenFileName(this, QString("打开文件").toLocal8Bit(), "", "Image Files(*.jpg *.png) *.bmp");
     if(strFile == "")
         return;
 
@@ -168,6 +176,35 @@ bool MainWindow::VerifySizes(cv::RotatedRect mr)
     }
 }
 
+double MatCompare(cv::Mat &src, cv::Mat &model)               //模板与图像对比计算相似度
+{
+    cv::Mat re_model;
+    cv::resize(model, re_model, src.size());
+    int rows, cols;
+    uchar *src_data, *model_data;
+    rows = re_model.rows;
+    cols = re_model.cols*src.channels();
+    double percentage,same=0.0,different=0.0;
+
+    for (int i = 0; i < rows; i++)       //遍历图像像素
+    {
+        src_data = src.ptr<uchar>(i);
+        model_data = re_model.ptr<uchar>(i);
+        for (int j = 0; j < cols; j++)
+        {
+            if (src_data[j] == model_data[j])
+            {
+                same++;         //记录像素值相同的个数
+            }
+            else
+            {
+                different++;    //记录像素值不同的个数
+            }
+        }
+    }
+    percentage = same / (same + different);
+    return percentage;                     //返回相似度
+}
 
 // 对图形求轮廓，因为车牌是一个矩形，所以可以求取轮廓，算某个矩形的倾斜角度。
 void MainWindow::ImageCorrection_Contour()
@@ -217,7 +254,7 @@ void MainWindow::ImageCorrection_Contour()
     cv::cvtColor(src, dst, cv::COLOR_RGB2GRAY);
     cv::threshold(dst, dst, 150, 255, cv::THRESH_BINARY);
 
-    cv::imshow("threshold", dst);
+    //cv::imshow("threshold", dst);
 
     // 腐蚀 膨胀 开运算，
     cv::Mat kenal = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3));
@@ -225,7 +262,7 @@ void MainWindow::ImageCorrection_Contour()
     kenal = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(7, 7));
     cv::morphologyEx(dst, dst, cv::MORPH_DILATE , kenal);
 
-    cv::imshow("MORPH_ERODE", dst);
+    //cv::imshow("MORPH_ERODE", dst);
 
     std::vector<std::vector<cv::Point> > vContours;
     std::vector<cv::Vec4i> hierarchy;
@@ -250,6 +287,10 @@ void MainWindow::ImageCorrection_Contour()
 
     double dPlateArea = dst.cols * dst.rows;
 
+    std::vector<cv::Mat> vCharMat;
+
+
+    cv::Mat testMat;
     for (size_t i = 0; i < vContours.size(); i++)
     {
         double dContourArea = cv::contourArea(vContours[i]);
@@ -257,21 +298,131 @@ void MainWindow::ImageCorrection_Contour()
         double dScale = dContourArea / dPlateArea;
         if( dScale > 0.02 && dScale < 0.3 )
         {
-            cv::RotatedRect rect = cv::minAreaRect(vContours[i]);
+            //
+            cv::RotatedRect rotRect = cv::minAreaRect(vContours[i]);
 
-            //drawContours(src, vContours, (int)i, color, 1, cv::LINE_AA, hierarchy, 0);
-            //cv::rectangle(src, rect.boundingRect(), cv::Scalar(0, 255, 0));
+            // 最小外界矩形
+            cv::Rect minRect = cv::boundingRect(vContours[i]);
+
+            //drawContours(src, vContours, (int)i, cv::Scalar(0, 0, 255), 1, cv::LINE_AA, hierarchy, 0);
+
+            //cv::rectangle(src, minRect, cv::Scalar(0, 255, 0));
             //cv::putText(src, QString("%1").arg(i).toLocal8Bit().data(), rect.center, 0, 0.5,  cv::Scalar(0, 255, 0));
 
-            cv::Mat matChar = src(rect.boundingRect());
-            //cv::imshow(QString("字符:%1").arg(i).toLocal8Bit().data(), matChar);
+            cv::Mat matChar = src(minRect);
+            if(vCharMat.size() == 0)
+                testMat = src(minRect);
 
+            cv::resize(matChar, matChar, cv::Size(50, 30));
+
+            cv::cvtColor(matChar, matChar, cv::COLOR_RGB2GRAY);
+            cv::threshold(matChar, matChar, 100, 255, cv::THRESH_BINARY_INV);
+
+            //cv::imshow(QString("char:%1").arg(i).toLocal8Bit().data(), matChar);
+
+            vCharMat.push_back(matChar);
         }
     }
 
-    cv::imshow("src", src);
 
-    LabelDisplayMat(ui->labelMidImage, dst);
+
+    // 载入模板
+    kenal = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5));
+    std::vector<cv::Mat> vTemplate;
+    for(int i = 0; i < 10; ++i)
+    {
+        cv::Mat temp = cv::imread(QString("f:\\template\\%1.png").arg(i).toLocal8Bit().data(), cv::IMREAD_GRAYSCALE);
+        cv::resize(temp, temp, cv::Size(50, 30));
+
+        cv::threshold(temp, temp, 125, 255, cv::THRESH_BINARY);
+        //cv::imshow(QString("template:%1").arg(i).toLocal8Bit().data(), temp);
+
+        cv::erode(temp, temp, kenal);
+
+        vTemplate.push_back(temp);
+
+    }
+
+
+#if 1       // 同字符比较
+
+
+//    // 获取所有轮廓
+//    vContours.clear();
+//    hierarchy.clear();
+
+//    cv::resize(testMat, testMat, cv::Size(50, 30));
+
+//    //    cv::findContours(dst, vContours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
+//    //    cv::findContours(dst, vContours, hierarchy, cv::RETR_LIST, cv::CHAIN_APPROX_NONE);
+//    //cv::findContours(dst, vContours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_NONE);
+//    //      cv::findContours(dst, vContours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_NONE);
+//    //    cv::findContours(dst, vContours, hierarchy, cv::RETR_FLOODFILL, cv::CHAIN_APPROX_NONE);
+
+//    cv::findContours(vCharMat[0], vContours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_NONE);
+//    for (size_t i = 0; i < vContours.size(); i++)
+//    {
+//        cv::RotatedRect rect = cv::minAreaRect(vContours[i]);
+
+
+//        drawContours(testMat, vContours, (int)i, cv::Scalar(0, 0, 255), 1, cv::LINE_AA, hierarchy, 0);
+//    }
+
+//    cv::imshow(QString("vCharMat:%1").arg(0).toLocal8Bit().data(), testMat);
+
+
+
+    for(int i = 0; i < vCharMat.size(); ++i)
+    {
+        int nPerfectIndex = -1;
+        double dBestMatchRate = 1.0;
+
+
+//        cv::imshow(QString("vCharMat[%1]").arg(i).toLocal8Bit().data(), vCharMat[i]);
+//        cv::moveWindow(QString("vCharMat[%1]").arg(i).toLocal8Bit().data(),i * 100, 0);
+
+        for(int j = 0; j < vTemplate.size(); ++j)
+        {
+
+//            cv::Mat image_matched;
+//            cv::matchTemplate(vCharMat[i], vTemplate[j], image_matched, cv::TM_CCOEFF_NORMED);
+            //cv::imshow(QString("Char:%1 %2").arg(i).arg(j).toLocal8Bit().data(), image_matched);
+
+
+            // 图片相减法
+//            cv::Mat result = vCharMat[i] - vTemplate[j];
+//            cv::imshow(QString("result:%1").arg(i).toLocal8Bit().data(), result);
+
+
+//            double matchRate = MatCompare(vCharMat[i], vTemplate[j]);
+//            if(matchRate > 0.35)
+//            {
+//                ui->leNumberPlate->setText(ui->leNumberPlate->text().append(QString("%1").arg(j)));
+//            }
+
+
+            // 其实质就是计算两幅图像的HU矩，然后比较两幅图像HU矩的距离，距离越小说明两幅图像越相似，距离值越大说明两幅图像越不相似。
+            // HU矩具有平移不变性，旋转不变性，缩放不变性，这样能够对图像进行有效的匹配。
+            // 单通道
+            double dMatchRate = cv::matchShapes(vCharMat[i], vTemplate[j], 1, 0);
+            if(dMatchRate < dBestMatchRate)
+            {
+                dBestMatchRate = dMatchRate;
+                nPerfectIndex = j;
+            }
+
+            //cv::imshow(QString("vTemplate[%1]").arg(j).toLocal8Bit().data(), vTemplate[j]);
+            //cv::moveWindow(QString("vTemplate[%1]").arg(j).toLocal8Bit().data(), j * 100, 300 );
+        }
+
+        if( nPerfectIndex >= 0 )
+            ui->labelMidImage->setText(ui->labelMidImage->text().append( QString("%1 : %2 \n").arg(nPerfectIndex).arg(dBestMatchRate)));
+    }
+
+#endif
+
+
+    //LabelDisplayMat(ui->labelMidImage, dst);
 }
 
 // 校正的结果就是横平竖直，所以，可以采用霍夫线的方式对图像进行检测，然后所有直线求一个平均倾斜角度，在旋转角度做运算。
