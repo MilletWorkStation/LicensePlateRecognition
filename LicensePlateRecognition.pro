@@ -29,6 +29,7 @@ FORMS += \
 
 
 INCLUDEPATH += "$$PWD"/opencv \
+                "$$PWD"/opencv/opencv2
 
 LIBS += "$$PWD"/opencv/x64/mingw/lib/libopencv_*.dll.a
 LIBS += "$$PWD"/opencv/x64/mingw/bin/libopencv_*.dll

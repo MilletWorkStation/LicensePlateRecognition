@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 4.11.1, 2021-06-10T18:16:15. -->
+<!-- Written by QtCreator 4.11.1, 2021-06-17T17:12:16. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -287,8 +287,9 @@
     </valuelist>
     <value type="int" key="PE.EnvironmentAspect.Base">2</value>
     <valuelist type="QVariantList" key="PE.EnvironmentAspect.Changes"/>
-    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qt4ProjectManager.Qt4RunConfiguration:D:/Project/QT/OpenCVStore/LicensePlateRecognition/LicensePlateRecognition.pro</value>
-    <value type="QString" key="ProjectExplorer.RunConfiguration.BuildKey">D:/Project/QT/OpenCVStore/LicensePlateRecognition/LicensePlateRecognition.pro</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">LicensePlateRecognition2</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qt4ProjectManager.Qt4RunConfiguration:F:/git/LicensePlateRecognition/LicensePlateRecognition.pro</value>
+    <value type="QString" key="ProjectExplorer.RunConfiguration.BuildKey">F:/git/LicensePlateRecognition/LicensePlateRecognition.pro</value>
     <value type="QString" key="RunConfiguration.Arguments"></value>
     <value type="bool" key="RunConfiguration.Arguments.multi">false</value>
     <value type="QString" key="RunConfiguration.OverrideDebuggerStartup"></value>

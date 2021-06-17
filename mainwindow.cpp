@@ -75,7 +75,13 @@ cv::Mat MainWindow::Grayscale(cv::Mat& src)
 cv::Mat MainWindow::Sobel(cv::Mat& src)
 {
     cv::Mat dst;
-    cv::Sobel(src, dst, -1, 1, 0, 3);
+
+    cv::Mat xMat, yMat;
+    cv::Sobel(src, xMat, -1, 1, 0);
+    cv::Sobel(src, yMat, -1, 0, 1);
+
+    cv::addWeighted(xMat, 1, yMat, 0.5, 0.5, dst);
+
     return dst;
 
 }
@@ -222,12 +228,12 @@ void MainWindow::ImageCorrection_Contour()
 
     // 采用 OTSU + THRESH_BINARY 算法进行二值化
     dst = TwoValued(dst);
-    //cv::imshow("Threshold", dst);
+    cv::imshow("Threshold", dst);
 
     // Sobel算子（X方向）：
     // 车牌定位的核心算法，水平方向上的边缘检测，检测出车牌区域。
     dst = Sobel(dst);
-    //cv::imshow("Sobel", dst);
+    cv::imshow("Sobel", dst);
 
 ////    // 形态学处理
 ////    // 闭运算：闭合起来 采用矩形获取内核
@@ -318,7 +324,7 @@ void MainWindow::ImageCorrection_Contour()
             cv::cvtColor(matChar, matChar, cv::COLOR_RGB2GRAY);
             cv::threshold(matChar, matChar, 100, 255, cv::THRESH_BINARY_INV);
 
-            //cv::imshow(QString("char:%1").arg(i).toLocal8Bit().data(), matChar);
+            cv::imshow(QString("char:%1").arg(i).toLocal8Bit().data(), matChar);
 
             vCharMat.push_back(matChar);
         }
